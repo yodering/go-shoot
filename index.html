@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- The wiki's image host refuses requests that carry another site's referrer. -->
+<meta name="referrer" content="no-referrer" />
+<title>Go Shoot!</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2314161a'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%23fff' stroke-width='4'/%3E%3C/svg%3E" />
+<meta name="description" content="Every Beyblade, 1999 to now." />
+<link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
+<style>
+@font-face {
+  font-family: "Archivo";
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+  src: url("fonts/archivo-latin.woff2") format("woff2");
+}
+:root {
+  color-scheme: light;
+  /* The page owns no colour: it is white, and each bey's page takes its colour from the photo. */
+  --paper: #fff; --ink: #14161a; --muted: #4d5158; --gutter: 1rem;
+  /* the toys' own type colours */
+  --Attack: #1f5fd6; --Defense: #1a8a4a; --Stamina: #e8a800; --Balance: #d9342b;
+}
+@media (min-width: 768px) { :root { --gutter: 2rem; } }
+* { box-sizing: border-box; margin: 0; }
+html { -webkit-tap-highlight-color: transparent; }
+html:has(dialog[open]) { overflow: hidden; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.45 "Archivo", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+button, input { font: inherit; color: inherit; background: none; border: 0; border-radius: 0; padding: 0; }
+button, a { touch-action: manipulation; cursor: pointer; color: inherit; text-decoration: none; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.wide { font-stretch: 125%; font-weight: 800; letter-spacing: -0.015em; line-height: 1.02; }
+/* how many, set as a superscript after a name */
+sup { margin-left: 0.25em; font-size: 0.8rem; font-weight: 500; font-stretch: 100%; letter-spacing: 0; line-height: 1; vertical-align: top; font-variant-numeric: tabular-nums; }
+.band { padding-inline: max(var(--gutter), calc((100% - 82rem) / 2)); }
+
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding-top: 1.25rem; }
+header .wide { font-size: 1.05rem; white-space: nowrap; }
+#q { width: 11rem; padding: 0.25rem 0; border-bottom: 2px solid transparent; text-align: right; font-size: 16px; outline: none; }
+#q::placeholder { color: var(--ink); opacity: 1; }
+#q:focus, #q:not(:placeholder-shown) { border-color: var(--ink); }
+#q:focus::placeholder { color: var(--muted); }
+
+/* The generations: the chosen one printed solid, the rest in outline. */
+#eras { display: flex; flex-wrap: wrap; gap: 0.2rem clamp(1rem, 3vw, 2.75rem); margin-top: clamp(2rem, 6vw, 4.5rem); }
+/* Filled with the paper colour over a doubled stroke: a transparent fill would show where the font's own contours overlap. */
+#eras button { font-size: clamp(2rem, 4.8vw, 4.25rem); color: var(--paper); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; }
+#eras button:hover, #eras [aria-pressed="true"] { color: var(--ink); }
+#eras sup { color: var(--ink); -webkit-text-stroke: 0; }
+
+.opts { display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem; margin-top: 1.25rem; }
+.opts:empty { display: none; }
+.opts button { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.15rem 0; color: var(--muted); }
+.opts button:hover { color: var(--ink); }
+.opts [aria-pressed="true"] { color: var(--ink); box-shadow: 0 2px 0 var(--ink); }
+#sort { margin-left: auto; }
+.dot { display: inline-block; flex: none; width: 0.55rem; height: 0.55rem; border-radius: 50%; }
+
+#grid { margin-top: 2.5rem; }
+/* Off-screen sections skip layout and paint; there are about two thousand tiles. */
+section { padding-block: 1.5rem 3rem; content-visibility: auto; contain-intrinsic-size: auto 60rem; }
+h2 { font-size: clamp(1.75rem, 3.6vw, 3rem); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 2rem 1.25rem; margin-top: 1.5rem; }
+.tile { display: block; min-width: 0; }
+.shot { display: block; width: 100%; aspect-ratio: 1; padding: 6%; object-fit: contain; transform: rotate(var(--r, 0deg)); }
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  /* one full turn; the transition lives on :hover so leaving does not unwind it */
+  .tile:hover .shot { transform: rotate(calc(var(--r, 0deg) + 360deg)); transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1); }
+}
+.tile b { display: block; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.meta { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.2rem; font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.meta time { margin-left: auto; }
+
+dialog { width: 100%; height: 100%; max-width: none; max-height: none; border: 0; background: var(--paper); color: var(--ink); overflow-y: auto; transition: background-color 0.5s, color 0.5s; }
+.detail { display: grid; gap: 1.25rem; padding-block: 1rem 4rem; grid-template-areas: "back" "photo" "name" "jp" "facts"; }
+.back { grid-area: back; justify-self: start; padding: 0.5rem 0; }
+/* A white disc, so the photo's white background has somewhere to sit on a coloured page. */
+.stage { grid-area: photo; min-width: 0; align-self: start; aspect-ratio: 1; border-radius: 50%; background: #fff; overflow: hidden; }
+/* 15% keeps the square photo's corners inside the disc */
+.stage .shot { padding: 15%; }
+h1 { grid-area: name; font-size: clamp(2.25rem, 5vw, 4.5rem); overflow-wrap: anywhere; }
+.jp { grid-area: jp; font-size: 1.25rem; font-weight: 700; }
+.facts { grid-area: facts; }
+dl { display: grid; grid-template-columns: 9rem 1fr; gap: 0.45rem 1rem; margin-bottom: 2rem; }
+dt { color: var(--muted); }
+dt::first-letter { text-transform: uppercase; }
+dd { overflow-wrap: anywhere; }
+.facts a { text-decoration: underline; text-underline-offset: 3px; }
+@media (min-width: 900px) {
+  .detail { grid-template: "back back back" auto "photo name jp" auto "photo facts jp" 1fr / minmax(0, 1.1fr) minmax(0, 1fr) auto; gap: 2rem 3.5rem; padding-top: 2rem; }
+  /* the Japanese name runs down the edge, as on the box */
+  .jp { writing-mode: vertical-rl; font-size: clamp(1.25rem, 2vw, 1.75rem); line-height: 1.35; letter-spacing: 0.06em; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .stage .shot { animation: rip 0.9s cubic-bezier(0.16, 1, 0.3, 1); }
+  @keyframes rip { from { transform: rotate(-220deg) scale(0.5); opacity: 0; } }
+}
+</style>
+</head>
+<body>
+<main id="controls">
+  <div class="band">
+    <header>
+      <span class="wide">Go Shoot!</span>
+      <input id="q" type="search" placeholder="Search" aria-label="Search" autocomplete="off" />
+    </header>
+    <div id="eras"></div>
+    <div class="opts" id="chips"></div>
+    <div class="opts" id="types"><button id="sort"></button></div>
+  </div>
+  <div id="grid"></div>
+</main>
+<dialog id="dlg" aria-labelledby="d-name"><div class="detail band" id="detail"></div></dialog>
+
+<script>
+const IMAGES = "https://static.wikia.nocookie.net/beyblade/images/";
+const TYPES = ["Attack", "Defense", "Stamina", "Balance"];
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+// The large photo is fetched with CORS so its pixels can be read for the bey's colour.
+const shot = (b, w, turn = 0) => (b.img ? `<img class="shot" ${w > 400 ? "crossorigin" : 'loading="lazy"'} alt="" style="--r:${turn}deg" src="${IMAGES}${b.img}/revision/latest/scale-to-width-down/${w}">` : `<span class="shot"></span>`);
+const dot = (type) => (TYPES.includes(type) ? `<i class="dot" style="background:var(--${type})"></i>` : "");
+const short = (system) => system.replace(/ System$/, "");
+
+// The photo's most vivid hue, as [r, g, b]; nothing if it is all greys.
+function colourOf(img) {
+  const n = 32, ctx = document.createElement("canvas").getContext("2d");
+  ctx.canvas.width = ctx.canvas.height = n;
+  ctx.drawImage(img, 0, 0, n, n);
+  const px = ctx.getImageData(0, 0, n, n).data, bins = {};
+  for (let i = 0; i < px.length; i += 4) {
+    const [r, g, b] = px.subarray(i, i + 3), max = Math.max(r, g, b), vivid = max - Math.min(r, g, b);
+    if (vivid < 70) continue; // white background, metal, shadow
+    const hue = max === r ? ((g - b) / vivid + 6) % 6 : max === g ? (b - r) / vivid + 2 : (r - g) / vivid + 4;
+    const bin = (bins[Math.round(hue * 2) % 12] ||= [0, 0, 0, 0]); // twelve slices of the wheel
+    bin[0] += r * vivid; bin[1] += g * vivid; bin[2] += b * vivid; bin[3] += vivid;
+  }
+  const top = Object.values(bins).sort((a, b) => b[3] - a[3])[0];
+  return top && top.slice(0, 3).map((v) => Math.round(v / top[3]));
+}
+
+function paint(img) {
+  let rgb;
+  try { rgb = colourOf(img); } catch {} // pixels unreadable: stay white
+  if (!rgb) return;
+  const dark = rgb[0] * 0.299 + rgb[1] * 0.587 + rgb[2] * 0.114 < 150;
+  const style = $("dlg").style;
+  style.setProperty("--paper", `rgb(${rgb})`);
+  style.setProperty("--ink", dark ? "#fff" : "#14161a");
+  style.setProperty("--muted", dark ? "#ffffffcc" : "#14161acc");
+}
+
+let gens = {}, beys = [];
+const genOf = {}; // generation or system -> its generation
+const state = { q: "", group: "", type: "", newest: false };
+
+function render() {
+  const q = state.q.trim().toLowerCase();
+  const list = beys.filter((b) =>
+    (!state.group || b.gen === state.group || b.system === state.group) &&
+    (!state.type || b.type === state.type) &&
+    (!q || `${b.name} ${b.code || ""} ${b.jp || ""}`.toLowerCase().includes(q)));
+  if (state.newest) list.reverse();
+
+  // beys.json is ordered by system, so each run of one system becomes a section
+  const runs = [];
+  for (const b of list) {
+    const key = b.gen + (b.system || "");
+    if (runs.at(-1)?.key !== key) runs.push({ key, title: b.system ? short(b.system) : `Other ${b.gen}`, items: [] });
+    runs.at(-1).items.push(b);
+  }
+  let i = 0;
+  $("grid").innerHTML = runs.map((run) =>
+    `<section class="band"><h2 class="wide">${esc(run.title)}<sup>${run.items.length}</sup></h2><div class="tiles">` +
+    run.items.map((b) =>
+      // each bey lies at its own small angle, the same one every time
+      `<a class="tile" href="#/${encodeURIComponent(b.name)}">${shot(b, 400, (i++ * 37) % 25 - 12)}<b>${esc(b.name)}</b>` +
+      `<span class="meta">${dot(b.type)}${esc(b.code || "")}<time>${b.date ? b.date.slice(0, 4) : ""}</time></span></a>`).join("") +
+    `</div></section>`).join("");
+
+  // Controls are only re-marked, not rebuilt, so a pressed button keeps keyboard focus.
+  const gen = genOf[state.group] || "";
+  if ($("chips").dataset.gen !== gen) {
+    $("chips").dataset.gen = gen;
+    $("chips").innerHTML = (gens[gen] || []).map((s) => `<button data-group="${s}">${short(s)}</button>`).join("");
+  }
+  for (const el of $("controls").querySelectorAll("[data-group]")) el.setAttribute("aria-pressed", el.dataset.group === state.group || el.dataset.group === gen);
+  for (const el of $("types").querySelectorAll("[data-type]")) el.setAttribute("aria-pressed", el.dataset.type === state.type);
+  $("sort").textContent = state.newest ? "Newest first" : "Oldest first";
+}
+
+function route() {
+  const name = decodeURIComponent(location.hash.slice(2));
+  const b = name && beys.find((x) => x.name === name);
+  if (!b) return $("dlg").open && $("dlg").close();
+  const rows = [["Type", b.type], ["Spin", b.spin], ...(b.parts || []), ["Code", b.code], ["System", b.system && short(b.system)], ["Released", b.release], ["Weight", b.weight]];
+  $("dlg").removeAttribute("style"); // back to white until this photo has loaded
+  $("detail").innerHTML =
+    `<button class="back">← Back</button><div class="stage">${shot(b, 800)}</div>` +
+    `<h1 class="wide" id="d-name">${esc(b.name)}</h1>` +
+    (b.jp ? `<p class="jp" lang="ja">${esc(b.jp)}</p>` : "") +
+    `<div class="facts"><dl>${rows.filter((r) => r[1]).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` +
+    `<a href="https://beyblade.fandom.com/wiki/${encodeURIComponent(b.name.replace(/ /g, "_"))}" target="_blank" rel="noopener">Beyblade Wiki</a></div>`;
+  const img = $("detail").querySelector("img");
+  if (img) img.complete ? paint(img) : (img.onload = () => paint(img));
+  if (!$("dlg").open) $("dlg").showModal();
+  $("dlg").scrollTop = 0;
+}
+
+// Leaving the detail drops the hash without a jump to the top, which following a "#" link would cause.
+$("dlg").addEventListener("close", () => location.hash && history.pushState(null, "", location.pathname));
+$("detail").addEventListener("click", (e) => e.target.closest(".back") && $("dlg").close());
+addEventListener("hashchange", route);
+addEventListener("popstate", route);
+
+$("q").addEventListener("input", (e) => { state.q = e.target.value; render(); });
+$("controls").addEventListener("click", (e) => {
+  const el = e.target.closest("button");
+  if (!el) return;
+  const { group, type } = el.dataset;
+  // pressing the chosen system or type again clears it
+  if (group != null) state.group = group === state.group ? genOf[group] || "" : group;
+  else if (type) state.type = type === state.type ? "" : type;
+  else state.newest = !state.newest;
+  render();
+});
+
+fetch("beys.json").then((r) => r.json()).then((data) => {
+  ({ gens, beys } = data);
+  const count = { "": beys.length };
+  for (const [gen, systems] of Object.entries(gens)) {
+    const mine = beys.filter((b) => b.gen === gen);
+    const used = new Set(mine.map((b) => b.system));
+    gens[gen] = systems.filter((s) => used.has(s));
+    for (const s of [gen, ...gens[gen]]) genOf[s] = gen;
+    count[gen] = mine.length;
+  }
+  $("eras").innerHTML = Object.keys(count).map((g) => `<button class="wide" data-group="${g}">${g || "All"}<sup>${count[g]}</sup></button>`).join("");
+  $("sort").insertAdjacentHTML("beforebegin", TYPES.map((t) => `<button data-type="${t}">${dot(t)}${t}</button>`).join(""));
+  render();
+  route();
+});
+</script>
+</body>
+</html>
